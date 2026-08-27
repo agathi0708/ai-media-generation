@@ -1,984 +1,2003 @@
-# AI Media Generation Service
+\# AI Media Generation API
 
-## 1. Project Overview
 
-The AI Media Generation Service is a FastAPI-based backend module that converts scene information into complete media assets.
 
-For each scene, the service can generate:
+\## 1. Project Overview
 
-- Text-to-Speech (TTS) audio
-- AI-generated image
-- Video using the generated image and audio
-- HTTP-accessible media URLs for the generated files
 
-The service supports both English and Tamil narration and provides male and female voice selection.
 
----
+AI Media Generation is a FastAPI-based service for generating audio and visual media from scene-based scripts.
 
-## 2. Module Responsibility
 
-This module is responsible for converting scene-level content into media assets.
 
-### Input
+The system converts scene narration into speech, automatically selects an appropriate Tamil or English voice based on the narration and the user's selected gender, generates AI-based visuals from visual prompts, and combines the generated media into scene videos.
 
-The module receives:
 
-- `project_id`
-- `scene_id`
-- `narration`
-- `visual_prompt`
-- `voice`
 
-### Processing
+The project focuses on clean provider abstraction, API integration, media storage, error handling, testing, and connecting generated media to the overall workflow.
 
-The service performs:
 
-1. Voice selection
-2. Text-to-Speech generation
-3. AI image generation
-4. Video generation
-5. Local media storage
-6. Media URL generation
 
-### Output
+\---
 
-For every scene, the service returns:
 
-- Audio path
-- Image path
-- Video path
-- Audio URL
-- Image URL
-- Video URL
 
----
+\## 2. Objective
 
-## 3. Overall Architecture
 
-```text
-                 Person 1 Backend
-                       |
-                       | Scene Data
-                       v
-              +----------------------+
-              | AI Media Generation  |
-              |       Service        |
-              +----------------------+
-                       |
-             +---------+---------+
-             |         |         |
-             v         v         v
-        Voice       Image      Video
-       Selector   Generation  Generation
-             |         |         |
-             v         v         v
-            TTS      PNG       MP4
-             |         |         |
-             +---------+---------+
-                       |
-                       v
-                Local Storage
-                       |
-                       v
-                  Media URLs
-```
 
----
+The objective of this project is to implement AI-generated audio and visual media required for video generation.
 
-## 4. Integration With Person 1 Backend
 
-Person 1's backend provides scene information that can be consumed by the media-generation system.
 
-The documented media-input structure contains:
+The system supports:
 
-```json
-{
-  "video_id": "video-001",
-  "project_id": "project-001",
-  "scenes": [
-    {
-      "scene_id": 1,
-      "narration": "Solar energy comes from sunlight.",
-      "visual_prompt": "Solar panels receiving sunlight on a modern rooftop.",
-      "voice": null
-    }
-  ]
-}
-```
 
-The media-generation service uses the scene-level fields:
+
+\- Text-to-Speech
+
+\- Automatic language detection
+
+\- Male/Female voice selection
+
+\- Scene-wise narration
+
+\- Audio generation
+
+\- Audio preview
+
+\- AI image generation
+
+\- AI video generation
+
+\- Scene-based visual generation
+
+\- Local media storage
+
+\- REST APIs
+
+\- Provider abstraction
+
+\- Error handling
+
+\- Automated and manual tests
+
+
+
+\---
+
+
+
+\## 3. Expected Workflow
+
+
 
 ```text
-scene_id
-narration
-visual_prompt
-voice
-```
 
-The current media-generation project API uses:
+Scene Script
 
-```text
-project_id
-scenes[]
-```
+\&#x20;   |
 
-as its request structure.
+\&#x20;   +------> Text-to-Speech
 
-> Note: `video_id` is part of the documented upstream integration structure, while the current `/api/v1/projects/generate` endpoint in this module accepts `project_id` and `scenes[]`.
+\&#x20;   |             |
 
----
+\&#x20;   |             v
 
-## 5. Project Generation API
+\&#x20;   |          Voiceover
 
-### Endpoint
+\&#x20;   |
 
-```text
-POST /api/v1/projects/generate
-```
+\&#x20;   +------> Visual Prompt
 
-This endpoint generates media for one or more scenes.
+\&#x20;                 |
 
----
+\&#x20;                 v
 
-## 6. Input Format
+\&#x20;           AI Image Generation
+
+\&#x20;                 |
+
+\&#x20;                 v
+
+\&#x20;            Scene Image
+
+\&#x20;                 |
+
+\&#x20;                 +------> Audio
+
+\&#x20;                 |
+
+\&#x20;                 v
+
+\&#x20;            Scene Video
+
+\&#x20;                 |
+
+\&#x20;                 v
+
+\&#x20;            Scene Assets
+
+
+
+4\\. Main Features
+
+4.1 Text-to-Speech
+
+
+
+The project uses Microsoft Edge TTS through the edge-tts Python package.
+
+
+
+Narration text is converted into audio and stored as an MP3 file.
+
+
 
 Example:
 
-```json
-{
-  "project_id": "project-001",
-  "scenes": [
-    {
-      "scene_id": 1,
-      "narration": "A farmer is working in his field.",
-      "visual_prompt": "A farmer working in a green agricultural field.",
-      "voice": "male"
-    }
-  ]
-}
-```
 
----
 
-## 7. Input Field Description
+Narration
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `project_id` | string | Yes | Unique project identifier |
-| `scenes` | array | Yes | List of scenes to generate |
-| `scene_id` | integer | Yes | Unique scene number |
-| `narration` | string | Yes | Text used to generate speech |
-| `visual_prompt` | string | Yes | Prompt used for image/video generation |
-| `voice` | string/null | No | `male`, `female`, or `null` |
+\&#x20;   |
 
----
+\&#x20;   v
 
-## 8. Voice Selection
+Edge TTS
 
-The user can specify the desired voice gender.
+\&#x20;   |
 
-### Male
+\&#x20;   v
 
-```json
-"voice": "male"
-```
+scene\\\_1.mp3
 
-The system selects:
+4.2 Automatic Language Detection
 
-**Tamil**
 
-```text
-ta-IN-ValluvarNeural
-```
 
-**English**
+The user does not need to manually select Tamil or English.
 
-```text
-en-US-AndrewNeural
-```
 
-### Female
 
-```json
-"voice": "female"
-```
+The system detects the language from the narration text.
 
-The system selects:
 
-**Tamil**
 
-```text
+Example:
+
+
+
+விவசாயி தனது வயலில் வேலை செய்கிறார்.
+
+\&#x20;               |
+
+\&#x20;               v
+
+\&#x20;             Tamil
+
+A farmer is working in his field.
+
+\&#x20;               |
+
+\&#x20;               v
+
+\&#x20;             English
+
+
+
+The detected language is then used by the voice selector to choose the appropriate voice.
+
+
+
+4.3 Voice Selection
+
+
+
+The user selects only the gender:
+
+
+
+Male
+
+
+
+or:
+
+
+
+Female
+
+
+
+The system automatically selects the voice based on:
+
+
+
+Detected narration language
+
+Selected gender
+
+
+
+Current voice mapping:
+
+
+
+Language	Gender	Voice
+
+Tamil	Female	ta-IN-PallaviNeural
+
+Tamil	Male	ta-IN-ValluvarNeural
+
+English	Female	en-US-AvaNeural
+
+English	Male	en-US-AndrewNeural
+
+
+
+Example:
+
+
+
+Tamil + Female
+
+\&#x20;     |
+
+\&#x20;     v
+
 ta-IN-PallaviNeural
-```
 
-**English**
+Tamil + Male
 
-```text
+\&#x20;     |
+
+\&#x20;     v
+
+ta-IN-ValluvarNeural
+
+English + Female
+
+\&#x20;     |
+
+\&#x20;     v
+
 en-US-AvaNeural
-```
 
-### Voice Not Provided
+English + Male
 
-If:
+\&#x20;     |
 
-```json
-"voice": null
-```
+\&#x20;     v
 
-the system uses the default male voice.
+en-US-AndrewNeural
 
-The language is detected automatically from the narration.
 
-```text
-Tamil + null
-    ↓
-Tamil male voice
 
-English + null
-    ↓
-English male voice
-```
+The API user does not need to provide a technical voice ID.
 
----
 
-## 9. Language Detection
 
-The `VoiceSelector` detects the language from the narration.
+5\\. Scene-wise Narration
 
-Supported languages:
 
-- Tamil
-- English
 
-Tamil characters are detected using the Tamil Unicode range.
+Each scene contains its own narration.
 
-English characters are detected using ASCII alphabetic characters.
 
-The detected language is then combined with the requested gender to select the appropriate Edge TTS voice.
 
----
+Example:
 
-## 10. Media Generation Pipeline
 
-For each scene:
 
-```text
-Scene Input
-    |
-    +--------------------+
-    |                    |
-    v                    v
-Narration          Visual Prompt
-    |                    |
-    v                    v
-Voice Selector      Image Provider
-    |                    |
-    v                    v
-TTS Audio             PNG Image
-    |                    |
-    +---------+----------+
-              |
-              v
-        Video Provider
-              |
-              v
-          MP4 Video
-              |
-              v
-         Local Storage
-              |
-              v
-          Media URLs
-```
-
----
-
-## 11. Generated Media
-
-For a project such as:
-
-```text
-project-001
-```
-
-the generated files follow this naming pattern:
-
-```text
-media/
-├── audio/
-│   └── project-001_scene_1.mp3
-│
-├── images/
-│   └── project-001_scene_1.png
-│
-└── videos/
-    └── project-001_scene_1.mp4
-```
-
----
-
-## 12. API Response
-
-Example response:
-
-```json
 {
-  "project_id": "project-001",
-  "scenes": [
-    {
-      "scene_id": 1,
-      "audio_path": "media/audio/project-001_scene_1.mp3",
-      "image_path": "media/images/project-001_scene_1.png",
-      "video_path": "media/videos/project-001_scene_1.mp4",
-      "audio_url": "http://127.0.0.1:8000/media/audio/project-001_scene_1.mp3",
-      "image_url": "http://127.0.0.1:8000/media/images/project-001_scene_1.png",
-      "video_url": "http://127.0.0.1:8000/media/videos/project-001_scene_1.mp4"
-    }
-  ]
+
+\&#x20; "scene\\\_id": 1,
+
+\&#x20; "narration": "A farmer is working in his field.",
+
+\&#x20; "visual\\\_prompt": "A realistic farmer working in a green agricultural field.",
+
+\&#x20; "voice": "male"
+
 }
-```
 
----
 
-## 13. Available API Endpoints
 
-### Health Check
+The narration is converted into audio specifically for that scene.
 
-```text
-GET /health
-```
 
-Returns the health status of the service.
 
-### Text-to-Speech
+For multiple scenes:
 
-```text
-/api/v1/tts
-```
 
-Used for text-to-speech operations.
 
-### Voices
+Scene 1
 
-```text
-/api/v1/voices
-```
+\&#x20;   |
 
-Used for voice-related operations.
+\&#x20;   +-- Narration
 
-### Image Generation
+\&#x20;   +-- Voice
 
-```text
-/api/v1/images
-```
+\&#x20;   +-- Audio
 
-Used for image-generation operations.
+\&#x20;   +-- Image
 
-### Scene Generation
+\&#x20;   +-- Video
 
-```text
-POST /api/v1/scenes/generate
-```
 
-Generates media for an individual scene.
 
-### Batch Scene Generation
 
-```text
-POST /api/v1/scenes/generate-batch
-```
 
-Generates media for multiple scenes.
+Scene 2
 
-### Project Generation
+\&#x20;   |
 
-```text
-POST /api/v1/projects/generate
-```
+\&#x20;   +-- Narration
 
-Generates complete media for a project containing one or more scenes.
+\&#x20;   +-- Voice
 
----
+\&#x20;   +-- Audio
 
-## 14. Media Access
+\&#x20;   +-- Image
 
-Generated media is exposed through FastAPI static files.
+\&#x20;   +-- Video
 
-The application mounts:
+6\\. AI Image Generation
 
-```text
-/media
-```
 
-For example:
 
-```text
-http://127.0.0.1:8000/media/audio/project-001_scene_1.mp3
-```
+The project integrates Hugging Face Inference Providers for AI image generation.
 
-```text
-http://127.0.0.1:8000/media/images/project-001_scene_1.png
-```
 
-```text
-http://127.0.0.1:8000/media/videos/project-001_scene_1.mp4
-```
 
----
+The image is generated from the scene's visual\\\_prompt.
 
-## 15. Technology Stack
 
-### Backend
 
-- Python
-- FastAPI
-- Pydantic
-- Pydantic Settings
+Example workflow:
 
-### Text-to-Speech
 
-- Edge TTS
 
-### Image Generation
+Visual Prompt
 
-- Hugging Face image provider
+\&#x20;     |
 
-### Video Generation
+\&#x20;     v
 
-- Local FFmpeg-based video generation
-- Other configurable video providers are available in the project
+Hugging Face Image Generation
 
-### Testing
+\&#x20;     |
 
-- Pytest
+\&#x20;     v
 
-### Media Processing
+AI Generated Image
 
-- FFmpeg
-- imageio-ffmpeg
 
----
 
-## 16. Project Structure
+The image provider is separated behind an ImageProvider interface.
 
-```text
-ai-media-generation/
-│
-├── app/
-│   ├── main.py
-│   │
-│   ├── api/
-│   │   └── routes/
-│   │       ├── images.py
-│   │       ├── projects.py
-│   │       ├── scenes.py
-│   │       ├── tts.py
-│   │       └── voices.py
-│   │
-│   ├── core/
-│   │   └── config.py
-│   │
-│   ├── providers/
-│   │   ├── factory.py
-│   │   ├── image/
-│   │   │   ├── existing_image_provider.py
-│   │   │   ├── huggingface_provider.py
-│   │   │   └── provider.py
-│   │   │
-│   │   ├── tts/
-│   │   │   ├── edge_tts_provider.py
-│   │   │   ├── edge_tts_voice_provider.py
-│   │   │   ├── elevenlabls_provider.py
-│   │   │   ├── provider.py
-│   │   │   └── voice_provider.py
-│   │   │
-│   │   └── video/
-│   │       ├── local_video_provider.py
-│   │       ├── ltx_video_provider.py
-│   │       ├── provider.py
-│   │       └── runway_video_provider.py
-│   │
-│   ├── schemas/
-│   │   ├── image.py
-│   │   ├── project.py
-│   │   ├── scene.py
-│   │   ├── tts.py
-│   │   └── voice.py
-│   │
-│   ├── services/
-│   │   ├── image_service.py
-│   │   ├── media_generation_service.py
-│   │   ├── project_service.py
-│   │   ├── scene_builder.py
-│   │   ├── scene_service.py
-│   │   ├── scene_splitter.py
-│   │   ├── script_loader.py
-│   │   ├── tts_service.py
-│   │   ├── video_composition_service.py
-│   │   ├── visual_prompt_generator.py
-│   │   ├── voice_selector.py
-│   │   └── voice_service.py
-│   │
-│   └── storage/
-│       ├── local_storage.py
-│       └── media_storage.py
-│
-├── media/
-│   ├── audio/
-│   ├── images/
-│   └── videos/
-│
-├── tests/
-│   ├── test_image.py
-│   ├── test_storage.py
-│   ├── test_tts.py
-│   ├── test_video.py
-│   └── test_voice_selector.py
-│
-├── .env
-├── .env.example
-├── .gitignore
-├── requirements.txt
-├── README.md
-└── AI_Media_Generation_Documentation.pdf
-```
 
----
 
-## 17. Installation
+This allows another image provider to be integrated later without changing the core media-generation workflow.
 
-Move into the project directory:
 
-```powershell
-cd ai-media-generation
-```
 
-Create a virtual environment:
+7\\. AI Video Generation
 
-```powershell
+
+
+The project uses a local video provider to create scene videos.
+
+
+
+The generated image and generated audio are combined to create a scene video.
+
+
+
+AI Image
+
+\&#x20;   +
+
+Voiceover Audio
+
+\&#x20;   |
+
+\&#x20;   v
+
+Scene Video
+
+
+
+The project does not attempt to build an AI video-generation model from scratch.
+
+
+
+Instead, it integrates the required media-generation components through provider abstractions.
+
+
+
+8\\. Scene-based Visual Generation
+
+
+
+Each scene has a separate visual prompt.
+
+
+
+Example:
+
+
+
+Scene 1
+
+\&#x20;   |
+
+\&#x20;   +-- Narration
+
+\&#x20;   |
+
+\&#x20;   +-- Visual Prompt
+
+\&#x20;            |
+
+\&#x20;            v
+
+\&#x20;       AI Image
+
+\&#x20;            |
+
+\&#x20;            v
+
+\&#x20;       Scene Video
+
+
+
+This allows different scenes to have different visual content.
+
+
+
+9\\. Media Storage
+
+
+
+Generated media is stored locally.
+
+
+
+Project media structure:
+
+
+
+media/
+
+├── audio/
+
+├── images/
+
+└── videos/
+
+
+
+Examples:
+
+
+
+media/audio/scene\\\_1.mp3
+
+media/images/scene\\\_1.png
+
+media/videos/scene\\\_1.mp4
+
+10\\. Audio Preview
+
+
+
+Generated audio files are served through FastAPI's static media route.
+
+
+
+Example:
+
+
+
+http://127.0.0.1:8000/media/audio/scene\\\_1.mp3
+
+
+
+The URL can be opened directly in a browser to listen to the generated narration.
+
+
+
+A frontend can also use the returned audio URL with an HTML audio player:
+
+
+
+<audio controls>
+
+\&#x20;   <source
+
+\&#x20;       src="http://127.0.0.1:8000/media/audio/scene\\\_1.mp3"
+
+\&#x20;       type="audio/mpeg"
+
+\&#x20;   >
+
+</audio>
+
+
+
+The project API returns both the audio file path and audio URL.
+
+
+
+11\\. Project Architecture
+
+app/
+
+|
+
++-- api/
+
+|   |
+
+|   +-- routes/
+
+|       +-- images.py
+
+|       +-- projects.py
+
+|       +-- scenes.py
+
+|       +-- tts.py
+
+|       +-- voices.py
+
+|
+
++-- core/
+
+|   +-- config.py
+
+|
+
++-- providers/
+
+|   |
+
+|   +-- factory.py
+
+|   |
+
+|   +-- image/
+
+|   |   +-- provider.py
+
+|   |   +-- huggingface\\\_provider.py
+
+|   |   +-- existing\\\_image\\\_provider.py
+
+|   |
+
+|   +-- tts/
+
+|   |   +-- provider.py
+
+|   |   +-- edge\\\_tts\\\_provider.py
+
+|   |
+
+|   +-- video/
+
+|       +-- provider.py
+
+|       +-- local\\\_video\\\_provider.py
+
+|
+
++-- schemas/
+
+|   +-- project.py
+
+|   +-- scene.py
+
+|   +-- tts.py
+
+|
+
++-- services/
+
+|   +-- media\\\_generation\\\_service.py
+
+|   +-- project\\\_service.py
+
+|   +-- scene\\\_service.py
+
+|   +-- tts\\\_service.py
+
+|   +-- voice\\\_selector.py
+
+|
+
++-- storage/
+
+|   +-- local\\\_storage.py
+
+|
+
++-- main.py
+
+12\\. Architecture Flow
+
+
+
+The application follows a layered architecture:
+
+
+
+Client
+
+\&#x20; |
+
+\&#x20; v
+
+FastAPI Routes
+
+\&#x20; |
+
+\&#x20; v
+
+Service Layer
+
+\&#x20; |
+
+\&#x20; +-------------------+
+
+\&#x20; |                   |
+
+\&#x20; v                   v
+
+TTS Provider      Image Provider
+
+\&#x20; |                   |
+
+\&#x20; v                   v
+
+Audio              Image
+
+\&#x20; |                   |
+
+\&#x20; +---------+---------+
+
+\&#x20;           |
+
+\&#x20;           v
+
+\&#x20;     Video Provider
+
+\&#x20;           |
+
+\&#x20;           v
+
+\&#x20;      Scene Video
+
+\&#x20;           |
+
+\&#x20;           v
+
+\&#x20;     Local Storage
+
+13\\. Provider Abstraction
+
+
+
+The project uses provider interfaces so that external AI services can be replaced without rewriting the main application.
+
+
+
+Image Provider
+
+ImageProvider
+
+\&#x20;   |
+
+\&#x20;   +-- HuggingFaceImageProvider
+
+\&#x20;   |
+
+\&#x20;   +-- ExistingImageProvider
+
+Text-to-Speech Provider
+
+TTSProvider
+
+\&#x20;   |
+
+\&#x20;   +-- EdgeTTSProvider
+
+Video Provider
+
+VideoProvider
+
+\&#x20;   |
+
+\&#x20;   +-- LocalVideoProvider
+
+
+
+The provider factory selects the provider based on configuration.
+
+
+
+14\\. Provider Factory
+
+
+
+The provider factory centralizes provider creation.
+
+
+
+Example:
+
+
+
+create\\\_tts\\\_provider()
+
+create\\\_image\\\_provider()
+
+create\\\_video\\\_provider()
+
+
+
+The main services do not need to know how individual providers are initialized.
+
+
+
+This improves:
+
+
+
+Maintainability
+
+Testability
+
+Extensibility
+
+Provider replacement
+
+15\\. Configuration
+
+
+
+Configuration is managed through environment variables.
+
+
+
+Example .env:
+
+
+
+IMAGE\\\_PROVIDER=huggingface
+
+VIDEO\\\_PROVIDER=local
+
+TTS\\\_PROVIDER=edge
+
+
+
+
+
+HF\\\_TOKEN=your\\\_hugging\\\_face\\\_token
+
+
+
+
+
+BASE\\\_URL=http://127.0.0.1:8000
+
+
+
+Do not commit .env or API tokens to GitHub.
+
+
+
+The project configuration is loaded using Pydantic Settings.
+
+
+
+16\\. Installation
+
+Step 1: Create a virtual environment
+
 python -m venv venv
-```
 
-Activate the virtual environment:
+Step 2: Activate the virtual environment
 
-```powershell
-.env\Scripts\Activate.ps1
-```
 
-Install dependencies:
-
-```powershell
-pip install -r requirements.txt
-```
-
----
-
-## 18. Environment Configuration
-
-Create a `.env` file based on:
-
-```text
-.env.example
-```
-
-Provider API keys and configuration values should be stored in environment variables rather than hard-coded in the source code.
-
-Do not commit secret API keys to GitHub.
-
----
-
-## 19. Run the Application
-
-Start the FastAPI server:
-
-```powershell
-uvicorn app.main:app --reload
-```
-
-The application will normally be available at:
-
-```text
-http://127.0.0.1:8000
-```
-
-FastAPI documentation:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
----
-
-## 20. Example API Request
 
 PowerShell:
 
-```powershell
-Invoke-RestMethod `
-  -Uri "http://127.0.0.1:8000/api/v1/projects/generate" `
-  -Method POST `
-  -ContentType "application/json" `
-  -Body '{
-    "project_id": "project-001",
-    "scenes": [
-      {
-        "scene_id": 1,
-        "narration": "A farmer is working in his field.",
-        "visual_prompt": "A farmer working in a green agricultural field.",
-        "voice": "male"
-      }
-    ]
-  }'
-```
 
----
 
-## 21. Multiple Scene Example
+.\\\\venv\\\\Scripts\\\\Activate.ps1
 
-```json
+
+
+If PowerShell blocks script execution:
+
+
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+
+
+
+Then activate the environment again:
+
+
+
+.\\\\venv\\\\Scripts\\\\Activate.ps1
+
+Step 3: Install dependencies
+
+pip install -r requirements.txt
+
+17\\. Environment Configuration
+
+
+
+Create a .env file in the project root.
+
+
+
+Example:
+
+
+
+IMAGE\\\_PROVIDER=huggingface
+
+VIDEO\\\_PROVIDER=local
+
+TTS\\\_PROVIDER=edge
+
+
+
+
+
+HF\\\_TOKEN=your\\\_hugging\\\_face\\\_token
+
+
+
+
+
+BASE\\\_URL=http://127.0.0.1:8000
+
+
+
+The Hugging Face token must be kept private.
+
+
+
+Never hard-code the token inside Python source code.
+
+
+
+18\\. Run the Application
+
+
+
+Start the FastAPI application using:
+
+
+
+uvicorn app.main:app --reload
+
+
+
+The API will be available at:
+
+
+
+http://127.0.0.1:8000
+
+
+
+Swagger API documentation:
+
+
+
+http://127.0.0.1:8000/docs
+
+19\\. Health Check API
+
+
+
+Endpoint:
+
+
+
+GET /health
+
+
+
+Example response:
+
+
+
 {
-  "project_id": "project-001",
-  "scenes": [
-    {
-      "scene_id": 1,
-      "narration": "A farmer is preparing his field.",
-      "visual_prompt": "A farmer preparing a green agricultural field.",
-      "voice": "male"
-    },
-    {
-      "scene_id": 2,
-      "narration": "The farmer plants healthy seeds.",
-      "visual_prompt": "A farmer planting seeds in fertile soil.",
-      "voice": "female"
-    },
-    {
-      "scene_id": 3,
-      "narration": "The crops grow under bright sunlight.",
-      "visual_prompt": "Healthy green crops growing under bright sunlight.",
-      "voice": null
-    }
-  ]
+
+\&#x20; "status": "healthy",
+
+\&#x20; "service": "ai-media-generation",
+
+\&#x20; "environment": "development"
+
 }
-```
 
----
+20\\. Project Generation API
 
-## 22. Testing
 
-The project uses Pytest for automated testing.
 
-Run the complete test suite:
+Endpoint:
 
-```powershell
-python -m pytest -v
-```
 
-Current verified test result:
 
-```text
-27 passed
-```
+POST /api/v1/projects/generate
 
-The test suite covers:
 
-- Image generation
-- Empty image prompts
-- Image provider failures
-- Audio generation
-- Empty narration
-- Empty voice IDs
-- Storage validation
-- Video generation
-- Missing image handling
-- Missing audio handling
-- Voice selection
-- Tamil voice selection
-- English voice selection
-- Male voice selection
-- Female voice selection
-- Default voice behavior
-- Invalid voice handling
 
----
+This endpoint generates media for one or more scenes.
 
-## 23. Voice Selector Tests
 
-The voice selector is tested for:
 
-```text
-Tamil + male
-→ ta-IN-ValluvarNeural
-```
+Request
 
-```text
-Tamil + female
-→ ta-IN-PallaviNeural
-```
+{
 
-```text
-English + male
-→ en-US-AndrewNeural
-```
+\&#x20; "project\\\_id": "agriculture-demo-001",
 
-```text
-English + female
-→ en-US-AvaNeural
-```
+\&#x20; "scenes": \\\[
 
-When the voice is null:
+\&#x20;   {
 
-```text
-null
-→ default male voice
-```
+\&#x20;     "scene\\\_id": 1,
 
----
+\&#x20;     "narration": "ஒரு விவசாயி தனது வயலில் வேலை செய்கிறார்.",
 
-## 24. Error Handling
+\&#x20;     "visual\\\_prompt": "A realistic farmer working in a green agricultural field during the morning, cinematic documentary style.",
 
-The service validates incoming data and raises errors for invalid input.
+\&#x20;     "voice": "female"
 
-Examples include:
+\&#x20;   }
 
-- Empty narration
-- Empty visual prompt
-- Invalid voice
-- Missing image
-- Missing audio
-- Invalid media filename
-- Failed provider operation
-- Failed FFmpeg operation
-- Empty generated media
+\&#x20; ]
 
-The API converts expected application errors into appropriate HTTP responses.
+}
 
----
+Processing Flow
 
-## 25. Media Storage
+API Request
 
-Generated files are stored locally under:
+\&#x20;   |
 
-```text
-media/
-```
+\&#x20;   v
 
-with separate directories for:
+Validate Request
 
-```text
-media/audio/
-media/images/
-media/videos/
-```
+\&#x20;   |
 
-The local storage service ensures that media files are saved with valid filenames and verifies generated content.
+\&#x20;   v
 
----
+Read Scene Narration
 
-## 26. Video Generation
+\&#x20;   |
 
-The local video provider uses FFmpeg to create a video from the generated image.
+\&#x20;   v
 
-When audio is available:
+Detect Language
 
-```text
+\&#x20;   |
+
+\&#x20;   v
+
+Select Male/Female Voice
+
+\&#x20;   |
+
+\&#x20;   v
+
+Generate Audio
+
+\&#x20;   |
+
+\&#x20;   v
+
+Generate Image
+
+\&#x20;   |
+
+\&#x20;   v
+
+Generate Video
+
+\&#x20;   |
+
+\&#x20;   v
+
+Store Scene Assets
+
+\&#x20;   |
+
+\&#x20;   v
+
+Return Media URLs
+
+Response
+
+{
+
+\&#x20; "project\\\_id": "agriculture-demo-001",
+
+\&#x20; "scenes": \\\[
+
+\&#x20;   {
+
+\&#x20;     "scene\\\_id": 1,
+
+\&#x20;     "audio\\\_path": "media/audio/scene\\\_1.mp3",
+
+\&#x20;     "image\\\_path": "media/images/scene\\\_1.png",
+
+\&#x20;     "video\\\_path": "media/videos/scene\\\_1.mp4",
+
+\&#x20;     "audio\\\_url": "http://127.0.0.1:8000/media/audio/scene\\\_1.mp3",
+
+\&#x20;     "image\\\_url": "http://127.0.0.1:8000/media/images/scene\\\_1.png",
+
+\&#x20;     "video\\\_url": "http://127.0.0.1:8000/media/videos/scene\\\_1.mp4"
+
+\&#x20;   }
+
+\&#x20; ]
+
+}
+
+21\\. Scene Request Fields
+
+
+
+Each scene contains:
+
+
+
+Field	Description
+
+scene\\\_id	Unique identifier for the scene
+
+narration	Text that will be converted into speech
+
+visual\\\_prompt	Prompt used for AI image generation
+
+voice	User-selected gender: male or female
+
+
+
+Example:
+
+
+
+{
+
+\&#x20; "scene\\\_id": 1,
+
+\&#x20; "narration": "A farmer is working in his field.",
+
+\&#x20; "visual\\\_prompt": "A realistic farmer working in a green field.",
+
+\&#x20; "voice": "male"
+
+}
+
+
+
+The user does not need to provide the technical Edge TTS voice ID.
+
+
+
+22\\. Audio URL
+
+
+
+Generated audio is returned through:
+
+
+
+audio\\\_url
+
+
+
+Example:
+
+
+
+http://127.0.0.1:8000/media/audio/scene\\\_1.mp3
+
+
+
+This URL can be used by a frontend for audio preview.
+
+
+
+23\\. Image URL
+
+
+
+Generated images are returned through:
+
+
+
+image\\\_url
+
+
+
+Example:
+
+
+
+http://127.0.0.1:8000/media/images/scene\\\_1.png
+
+24\\. Video URL
+
+
+
+Generated scene videos are returned through:
+
+
+
+video\\\_url
+
+
+
+Example:
+
+
+
+http://127.0.0.1:8000/media/videos/scene\\\_1.mp4
+
+25\\. API Media Serving
+
+
+
+The application exposes the local media directory through FastAPI:
+
+
+
+app.mount(
+
+\&#x20;   "/media",
+
+\&#x20;   StaticFiles(directory="media"),
+
+\&#x20;   name="media",
+
+)
+
+
+
+This allows generated media to be accessed through HTTP URLs.
+
+
+
+26\\. Voice Selection Test Results
+
+
+
+The voice selector has been tested with Tamil and English narration.
+
+
+
+Tamil Female
+
+Narration:
+
+விவசாயி தனது வயலில் வேலை செய்கிறார்.
+
+
+
+
+
+Gender:
+
+female
+
+
+
+
+
+Detected language:
+
+ta
+
+
+
+
+
+Selected voice:
+
+ta-IN-PallaviNeural
+
+Tamil Male
+
+Narration:
+
+விவசாயி தனது வயலில் வேலை செய்கிறார்.
+
+
+
+
+
+Gender:
+
+male
+
+
+
+
+
+Detected language:
+
+ta
+
+
+
+
+
+Selected voice:
+
+ta-IN-ValluvarNeural
+
+English Female
+
+Narration:
+
+A farmer is working in his field.
+
+
+
+
+
+Gender:
+
+female
+
+
+
+
+
+Detected language:
+
+en
+
+
+
+
+
+Selected voice:
+
+en-US-AvaNeural
+
+English Male
+
+Narration:
+
+A farmer is working in his field.
+
+
+
+
+
+Gender:
+
+male
+
+
+
+
+
+Detected language:
+
+en
+
+
+
+
+
+Selected voice:
+
+en-US-AndrewNeural
+
+27\\. Testing
+
+
+
+The project includes tests for individual components and services.
+
+
+
+Examples:
+
+
+
+test\\\_tamil\\\_tts.py
+
+test\\\_tamil\\\_action\\\_image.py
+
+test\\\_voice\\\_selector.py
+
+test\\\_media\\\_generation\\\_service.py
+
+test\\\_project\\\_service.py
+
+test\\\_multi\\\_scene.py
+
+test\\\_project\\\_schema.py
+
+test\\\_scene\\\_service.py
+
+test\\\_tts\\\_provider.py
+
+Python compilation check
+
+
+
+Run:
+
+
+
+python -m compileall .\\\\app
+
+
+
+A successful result confirms that the application Python files compile without syntax errors.
+
+
+
+Voice selector test
+
+
+
+Run:
+
+
+
+python test\\\_voice\\\_selector.py
+
+
+
+The test verifies:
+
+
+
+Tamil language detection
+
+English language detection
+
+Female voice selection
+
+Male voice selection
+
+28\\. Image Generation Test
+
+
+
+The image generation provider can be tested independently.
+
+
+
+Example:
+
+
+
+python test\\\_tamil\\\_action\\\_image.py
+
+
+
+The test generates an image from a visual prompt and stores it under the media directory.
+
+
+
+29\\. Video Generation Test
+
+
+
+The video pipeline can be tested using generated image and audio assets.
+
+
+
+The pipeline combines:
+
+
+
 Image
-  +
+
+\&#x20;+
+
 Audio
-  ↓
-FFmpeg
-  ↓
+
+\&#x20;|
+
+\&#x20;v
+
 MP4 Video
-```
 
-The video uses the audio duration to determine the video duration.
+30\\. Error Handling
 
-The generated video is encoded using H.264 video and AAC audio.
 
----
 
-## 27. Complete End-to-End Workflow
+The application includes error handling at provider, service, and API levels.
 
-```text
-1. Receive project and scene information
-              ↓
-2. Validate scene data
-              ↓
-3. Detect narration language
-              ↓
-4. Select male/female voice
-              ↓
-5. Generate TTS audio
-              ↓
-6. Generate image from visual prompt
-              ↓
-7. Generate video using image + audio
-              ↓
-8. Save audio/image/video
-              ↓
-9. Generate media URLs
-              ↓
-10. Return project response
-```
 
----
 
-## 28. Example End-to-End Result
+Important exceptions include:
 
-Input:
 
-```json
+
+MediaGenerationError
+
+ProjectGenerationError
+
+ProviderConfigurationError
+
+
+
+Errors are converted into appropriate API responses.
+
+
+
+Example:
+
+
+
 {
-  "project_id": "project-001",
-  "scenes": [
-    {
-      "scene_id": 1,
-      "narration": "A farmer is working in his field.",
-      "visual_prompt": "A farmer working in a green agricultural field.",
-      "voice": "male"
-    }
-  ]
+
+\&#x20; "detail": "Failed to generate project 'project-id': ..."
+
 }
-```
 
-Generated assets:
 
-```text
-media/audio/project-001_scene_1.mp3
-media/images/project-001_scene_1.png
-media/videos/project-001_scene_1.mp4
-```
 
-These assets were successfully generated during integration testing.
+Invalid request data is handled by FastAPI and Pydantic validation.
 
----
 
-## 29. Design Principles
 
-The module follows a provider/service architecture.
+31\\. Provider Configuration Errors
 
-### Providers
 
-Providers handle external or implementation-specific media generation.
 
-Examples:
+If an unsupported provider is configured, the provider factory raises a configuration error.
 
-- Image Provider
-- TTS Provider
-- Video Provider
 
-### Services
 
-Services coordinate business logic.
+Example:
 
-Examples:
 
-- `SceneService`
-- `ProjectService`
-- `VoiceSelector`
-- `ImageService`
-- `TTSService`
 
-### Schemas
+Unsupported image provider: provider\\\_name
 
-Pydantic schemas validate API input and output.
 
-### Storage
 
-The storage layer handles saving generated media files.
+This prevents the application from silently using an incorrect provider.
 
-This separation makes providers replaceable without changing the main business logic.
 
----
 
-## 30. Current Status
+32\\. API Validation
 
-The AI Media Generation Service is currently functional for the implemented workflow.
 
-Verified capabilities:
 
-```text
-✓ FastAPI application
-✓ Project generation API
-✓ Scene generation
-✓ Multi-scene request support
-✓ English narration
-✓ Tamil narration
-✓ Male voice
-✓ Female voice
-✓ Default voice when voice is null
-✓ TTS generation
-✓ AI image generation
-✓ Video generation
-✓ Local media storage
-✓ Media URLs
-✓ Automated testing
-✓ Person 1 integration structure tested
-```
+The project uses Pydantic schemas for request validation.
 
-Automated test status:
 
-```text
-27 passed
-```
 
----
+Examples of validation include:
 
-## 31. Future Improvements
+
+
+Project ID must not be empty
+
+Scene list must contain at least one scene
+
+Scene ID must be at least 1
+
+Narration must not be empty
+
+Visual prompt must not be empty
+
+Voice must not be empty
+
+
+
+Invalid requests return FastAPI validation responses.
+
+
+
+33\\. Security
+
+
+
+API keys and access tokens are stored in environment variables.
+
+
+
+Example:
+
+
+
+HF\\\_TOKEN=...
+
+
+
+Never commit secret credentials to source control.
+
+
+
+The .env file should be included in .gitignore.
+
+
+
+If a token is accidentally exposed, it should be revoked and replaced.
+
+
+
+34\\. Optional Features
+
+
+
+The following features are optional according to the project requirements:
+
+
+
+Avatar generation
+
+Talking avatar
+
+Lip-sync
+
+
+
+These features are not part of the required core implementation.
+
+
+
+They can be added later as separate provider integrations.
+
+
+
+35\\. Future Enhancements
+
+
 
 Possible future improvements include:
 
-- Cloud media storage
-- Database-backed project management
-- Asynchronous media generation
-- Background job processing
-- Progress tracking
-- Better language detection
-- More supported languages
-- More TTS voice providers
-- More image providers
-- More video providers
-- Video composition for multiple scenes
-- Authentication and authorization
-- Production deployment
-- Docker support
-- Cloud deployment
 
----
 
-## 32. Summary
+Web-based frontend
 
-The AI Media Generation Service converts structured scene information into complete multimedia content.
+Scene editor
 
-The main pipeline is:
+Visual media preview
 
-```text
-Narration
-   ↓
-Voice Selection
-   ↓
-TTS Audio
-   +
-Visual Prompt
-   ↓
-AI Image
-   +
+Audio preview UI
+
+Video preview UI
+
+Multiple image-provider support
+
+Additional TTS providers
+
+Cloud media storage
+
+Background job processing
+
+Generation progress tracking
+
+Avatar generation
+
+Talking avatar
+
+Lip-sync
+
+User authentication
+
+Project history
+
+36\\. Current Project Status
+
+Required Deliverables
+
+\&#x20;TTS integration
+
+\&#x20;Voice selection
+
+\&#x20;Scene-wise narration
+
+\&#x20;Audio generation
+
+\&#x20;Audio preview
+
+\&#x20;AI image generation
+
+\&#x20;AI video generation
+
+\&#x20;Scene-based visual generation
+
+\&#x20;Media storage
+
+\&#x20;APIs
+
+\&#x20;Provider abstraction
+
+\&#x20;Error handling
+
+\&#x20;Tests
+
+\&#x20;Documentation
+
+Optional Features
+
+\&#x20;Avatar generation
+
+\&#x20;Talking avatar
+
+\&#x20;Lip-sync
+
+37\\. Project Workflow Summary
+
+
+
+The complete system works as follows:
+
+
+
+User
+
+\&#x20;|
+
+\&#x20;| Project ID
+
+\&#x20;| Scene narration
+
+\&#x20;| Visual prompt
+
+\&#x20;| Male/Female
+
+\&#x20;|
+
+\&#x20;v
+
+FastAPI API
+
+\&#x20;|
+
+\&#x20;v
+
+Project Service
+
+\&#x20;|
+
+\&#x20;+-------------------------+
+
+\&#x20;|                         |
+
+\&#x20;v                         v
+
+Voice Selector         Visual Prompt
+
+\&#x20;|                         |
+
+\&#x20;v                         v
+
+Language Detection      Image Provider
+
+\&#x20;|                         |
+
+\&#x20;v                         v
+
+Voice Selection         AI Image
+
+\&#x20;|                         |
+
+\&#x20;v                         |
+
+Edge TTS                  |
+
+\&#x20;|                         |
+
+\&#x20;v                         |
+
+Audio --------------------+
+
+\&#x20;          |
+
+\&#x20;          v
+
+\&#x20;     Video Provider
+
+\&#x20;          |
+
+\&#x20;          v
+
+\&#x20;     Scene Video
+
+\&#x20;          |
+
+\&#x20;          v
+
+\&#x20;     Local Storage
+
+\&#x20;          |
+
+\&#x20;          v
+
+\&#x20;     API Response
+
+\&#x20;          |
+
+\&#x20;          +---- Audio URL
+
+\&#x20;          +---- Image URL
+
+\&#x20;          +---- Video URL
+
+38\\. Design Principles
+
+
+
+The implementation follows these principles:
+
+
+
+Separation of Concerns
+
+
+
+API routes, business logic, providers, schemas, and storage are separated.
+
+
+
+Provider Abstraction
+
+
+
+External AI providers are accessed through interfaces rather than being tightly coupled to business logic.
+
+
+
+Reusability
+
+
+
+Services can be reused for individual scenes or complete projects.
+
+
+
+Error Handling
+
+
+
+Provider and service failures are captured and returned through meaningful API errors.
+
+
+
+Configuration-driven Providers
+
+
+
+Providers can be selected through environment configuration.
+
+
+
+Testability
+
+
+
+Individual providers and services can be tested independently.
+
+
+
+39\\. Technology Stack
+
+Backend
+
+Python
+
+FastAPI
+
+Uvicorn
+
+Pydantic
+
+Pydantic Settings
+
+AI / Media
+
+Edge TTS
+
+Hugging Face Inference
+
+AI image generation
+
+Local video generation
+
+Storage
+
+Local file storage
+
+API Documentation
+
+FastAPI Swagger UI
+
+OpenAPI
+
+40\\. Running the Project - Quick Start
+
+\\# Activate virtual environment
+
+.\\\\venv\\\\Scripts\\\\Activate.ps1
+
+
+
+
+
+\\# Install dependencies
+
+pip install -r requirements.txt
+
+
+
+
+
+\\# Start API
+
+uvicorn app.main:app --reload
+
+
+
+Open:
+
+
+
+http://127.0.0.1:8000/docs
+
+41\\. Example End-to-End Request
+
+{
+
+\&#x20; "project\\\_id": "agriculture-demo-001",
+
+\&#x20; "scenes": \\\[
+
+\&#x20;   {
+
+\&#x20;     "scene\\\_id": 1,
+
+\&#x20;     "narration": "ஒரு விவசாயி தனது வயலில் வேலை செய்கிறார்.",
+
+\&#x20;     "visual\\\_prompt": "A realistic South Indian farmer working in a green agricultural field during the morning, cinematic documentary style.",
+
+\&#x20;     "voice": "female"
+
+\&#x20;   }
+
+\&#x20; ]
+
+}
+
+
+
+Processing:
+
+
+
+Tamil Narration
+
+\&#x20;     |
+
+\&#x20;     v
+
+Language Detection
+
+\&#x20;     |
+
+\&#x20;     v
+
+Tamil + Female
+
+\&#x20;     |
+
+\&#x20;     v
+
+ta-IN-PallaviNeural
+
+\&#x20;     |
+
+\&#x20;     v
+
+Audio Generation
+
+\&#x20;     |
+
+\&#x20;     v
+
+AI Image Generation
+
+\&#x20;     |
+
+\&#x20;     v
+
 Image + Audio
-   ↓
-Video
-   ↓
-Stored Media
-   ↓
-Media URLs
-```
 
-The service is designed to integrate with the upstream Agentic Backend and provide generated media assets to downstream components.
+\&#x20;     |
 
----
+\&#x20;     v
 
-## Project Status
+Scene Video
 
-**AI Media Generation Module — Working**
+\&#x20;     |
 
-**Automated Tests: 27 passed**
-#   a i - m e d i a - g e n e r a t i o n  
- 
+\&#x20;     v
+
+Media Storage
+
+\&#x20;     |
+
+\&#x20;     v
+
+API Response
+
+42\\. Conclusion
+
+
+
+The AI Media Generation API provides a complete scene-based workflow for generating AI-assisted audio and visual media.
+
+
+
+The implementation integrates:
+
+
+
+Text-to-Speech
+
+Automatic language detection
+
+Male/Female voice selection
+
+Scene-wise narration
+
+Audio generation
+
+Audio preview
+
+AI image generation
+
+AI video generation
+
+Scene-based visual generation
+
+Local media storage
+
+REST APIs
+
+Provider abstraction
+
+Error handling
+
+Testing
+
+
+
+
+
+
+
+

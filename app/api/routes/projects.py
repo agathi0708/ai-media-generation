@@ -31,6 +31,7 @@ router = APIRouter(
 def generate_project(
     request: ProjectGenerateRequest,
 ):
+
     try:
 
         # -----------------------------------
@@ -38,9 +39,16 @@ def generate_project(
         # -----------------------------------
 
         tts_provider = create_tts_provider()
-        video_provider = create_video_provider()
+
+        video_provider = (
+            create_video_provider()
+        )
 
         storage = LocalMediaStorage()
+
+        # -----------------------------------
+        # Create project service
+        # -----------------------------------
 
         service = ProjectService(
             tts_provider=tts_provider,
@@ -53,33 +61,35 @@ def generate_project(
         # -----------------------------------
 
         scenes = [
+
             Scene(
                 scene_id=scene.scene_id,
                 narration=scene.narration,
                 visual_prompt=scene.visual_prompt,
+                visual_prompts=scene.visual_prompts,
             )
+
             for scene in request.scenes
         ]
 
         # -----------------------------------
-        # Select voice automatically
-        #
-        # Language is detected from narration.
-        # User chooses only male/female.
+        # Select voices
         # -----------------------------------
 
         voice_selector = VoiceSelector()
 
         voice_ids = [
+
             voice_selector.select_voice(
                 narration=scene.narration,
                 gender=scene.voice,
             )
+
             for scene in request.scenes
         ]
 
         # -----------------------------------
-        # Generate complete project
+        # Generate project
         # -----------------------------------
 
         result = service.generate_project(
@@ -96,34 +106,74 @@ def generate_project(
 
         for scene in result["scenes"]:
 
-            audio_path = scene["audio_path"]
-            image_path = scene["image_path"]
-            video_path = scene["video_path"]
+            # -----------------------------------
+            # Audio
+            # -----------------------------------
+
+            audio_path = (
+                scene["audio_path"]
+            )
 
             audio_url = (
                 f"{settings.base_url}/"
                 f"{audio_path.replace(chr(92), '/')}"
             )
 
-            image_url = (
-                f"{settings.base_url}/"
-                f"{image_path.replace(chr(92), '/')}"
+            # -----------------------------------
+            # Images
+            # -----------------------------------
+
+            image_paths = scene.get(
+                "image_paths",
+                [],
             )
 
-            video_url = (
-                f"{settings.base_url}/"
-                f"{video_path.replace(chr(92), '/')}"
+            image_urls = [
+
+                (
+                    f"{settings.base_url}/"
+                    f"{path.replace(chr(92), '/')}"
+                )
+
+                for path in image_paths
+            ]
+
+            # -----------------------------------
+            # Video
+            # -----------------------------------
+
+            video_path = (
+                scene.get("video_path")
             )
+
+            video_url = None
+
+            if video_path:
+
+                video_url = (
+                    f"{settings.base_url}/"
+                    f"{video_path.replace(chr(92), '/')}"
+                )
+
+            # -----------------------------------
+            # Response
+            # -----------------------------------
 
             scene_responses.append(
                 {
                     "scene_id": scene["scene_id"],
+
                     "audio_path": audio_path,
-                    "image_path": image_path,
+
                     "video_path": video_path,
+
                     "audio_url": audio_url,
-                    "image_url": image_url,
+
                     "video_url": video_url,
+
+                    "image_paths": image_paths,
+
+                    "image_urls": image_urls,
                 }
             )
 
@@ -132,6 +182,10 @@ def generate_project(
             scenes=scene_responses,
         )
 
+    # -----------------------------------
+    # Validation errors
+    # -----------------------------------
+
     except ValueError as exc:
 
         raise HTTPException(
@@ -139,12 +193,20 @@ def generate_project(
             detail=str(exc),
         ) from exc
 
+    # -----------------------------------
+    # Project generation errors
+    # -----------------------------------
+
     except ProjectGenerationError as exc:
 
         raise HTTPException(
             status_code=500,
             detail=str(exc),
         ) from exc
+
+    # -----------------------------------
+    # Unexpected errors
+    # -----------------------------------
 
     except Exception as exc:
 

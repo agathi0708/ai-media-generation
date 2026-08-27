@@ -1,6 +1,3 @@
-from pathlib import Path
-
-from app.core.config import settings
 from app.providers.factory import create_image_provider
 from app.providers.tts.provider import TTSProvider
 from app.providers.video.provider import VideoProvider
@@ -64,70 +61,36 @@ class ProjectService:
                 # Create image provider
                 # -----------------------------------
 
-                provider_name = (
-                    settings.image_provider
-                    .lower()
-                    .strip()
-                )
-
-                if provider_name == "existing":
-
-                    # Existing-image mode:
-                    # use media/images/scene_X.png
-
-                    image_path = (
-                        Path("media")
-                        / "images"
-                        / f"scene_{scene.scene_id}.png"
-                    )
-
-                    if not image_path.exists():
-                        raise FileNotFoundError(
-                            f"Image for scene "
-                            f"{scene.scene_id} not found: "
-                            f"{image_path}"
-                        )
-
-                    image_provider = create_image_provider(
-                        image_path=str(image_path),
-                    )
-
-                else:
-
-                    # AI-image mode:
-                    # image will be generated from
-                    # scene.visual_prompt
-
-                    image_path = None
-
-                    image_provider = create_image_provider()
-
-                # -----------------------------------
-                # Create media generation service
-                # -----------------------------------
-
-                media_service = MediaGenerationService(
-                    tts_provider=self.tts_provider,
-                    image_provider=image_provider,
-                    video_provider=self.video_provider,
-                    storage=self.storage,
+                image_provider = (
+                    create_image_provider()
                 )
 
                 # -----------------------------------
-                # Generate complete scene media
+                # Create media service
                 # -----------------------------------
 
-                result = media_service.generate_scene_media(
-                    project_id=project_id,
-                    scene=scene,
-                    voice_id=voice_id,
-                    image_path=(
-                        str(image_path)
-                        if image_path
-                        else None
-                    ),
-                    generate_video=True,
-                    duration=5,
+                media_service = (
+                    MediaGenerationService(
+                        tts_provider=self.tts_provider,
+                        image_provider=image_provider,
+                        video_provider=self.video_provider,
+                        storage=self.storage,
+                    )
+                )
+
+                # -----------------------------------
+                # Generate scene media
+                # -----------------------------------
+
+                result = (
+                    media_service.generate_scene_media(
+                        project_id=project_id,
+                        scene=scene,
+                        voice_id=voice_id,
+                        image_path=None,
+                        generate_video=True,
+                        duration=5,
+                    )
                 )
 
                 results.append(result)

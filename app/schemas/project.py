@@ -1,11 +1,17 @@
 from pydantic import BaseModel, Field
 
-from app.schemas.scene import SceneGenerateRequest, SceneGenerateResponse
+from app.schemas.scene import (
+    SceneGenerateRequest,
+    SceneGenerateResponse,
+)
 
 
 class ProjectGenerateRequest(BaseModel):
 
-    project_id: str = Field(..., min_length=1)
+    project_id: str = Field(
+        ...,
+        min_length=1,
+    )
 
     scenes: list[SceneGenerateRequest] = Field(
         ...,

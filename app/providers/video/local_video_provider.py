@@ -12,6 +12,10 @@ class LocalVideoProvider(VideoProvider):
     def __init__(self):
         self.ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
 
+    # -----------------------------------
+    # Get audio duration
+    # -----------------------------------
+
     def _get_audio_duration(
         self,
         audio_path: Path,
@@ -42,7 +46,9 @@ class LocalVideoProvider(VideoProvider):
                 .strip()
             )
 
-            hours, minutes, seconds = duration_text.split(":")
+            hours, minutes, seconds = (
+                duration_text.split(":")
+            )
 
             return (
                 int(hours) * 3600
@@ -54,50 +60,111 @@ class LocalVideoProvider(VideoProvider):
             "Could not determine audio duration."
         )
 
+    # -----------------------------------
+    # Generate video
+    # -----------------------------------
+
     def generate_video(
         self,
         prompt: str,
         image_url: str | None = None,
         audio_url: str | None = None,
         duration: int = 5,
+        image_paths: list[str] | None = None,
     ) -> bytes:
 
-        if not image_url:
+        # -----------------------------------
+        # Build image list
+        # -----------------------------------
+
+        images = []
+
+        # New multi-image support
+        if image_paths:
+
+            images = [
+                Path(path)
+                for path in image_paths
+                if path
+            ]
+
+        # Backward compatibility
+        elif image_url:
+
+            images = [
+                Path(image_url)
+            ]
+
+        else:
+
             raise ValueError(
-                "An image path is required."
+                "At least one image path is required."
             )
 
-        image_path = Path(image_url)
+        # -----------------------------------
+        # Validate images
+        # -----------------------------------
 
-        if not image_path.exists():
-            raise FileNotFoundError(
-                f"Image file not found: {image_path}"
+        if not images:
+
+            raise ValueError(
+                "At least one image path is required."
             )
+
+        for image_path in images:
+
+            if not image_path.exists():
+
+                raise FileNotFoundError(
+                    f"Image file not found: "
+                    f"{image_path}"
+                )
 
         # -----------------------------------
         # Check audio
         # -----------------------------------
 
         if audio_url:
+
             audio_path = Path(audio_url)
 
             if not audio_path.exists():
+
                 raise FileNotFoundError(
-                    f"Audio file not found: {audio_path}"
+                    f"Audio file not found: "
+                    f"{audio_path}"
                 )
 
-            actual_duration = self._get_audio_duration(
-                audio_path
+            actual_duration = (
+                self._get_audio_duration(
+                    audio_path
+                )
             )
 
             if actual_duration <= 0:
+
                 raise RuntimeError(
                     "Audio duration is invalid."
                 )
 
         else:
+
             audio_path = None
             actual_duration = float(duration)
+
+        # -----------------------------------
+        # Calculate duration per image
+        # -----------------------------------
+
+        image_count = len(images)
+
+        duration_per_image = (
+            actual_duration / image_count
+        )
+
+        # -----------------------------------
+        # Temporary working directory
+        # -----------------------------------
 
         with tempfile.TemporaryDirectory() as temp_dir:
 
@@ -109,51 +176,37 @@ class LocalVideoProvider(VideoProvider):
             )
 
             # -----------------------------------
-            # Video configuration
-            # -----------------------------------
-
-            frames_per_second = 24
-
-            total_frames = max(
-                1,
-                int(
-                    actual_duration
-                    * frames_per_second
-                ),
-            )
-
-            video_filter = (
-                "scale=1920:1080:"
-                "force_original_aspect_ratio=decrease,"
-                "pad=1920:1080:"
-                "(ow-iw)/2:"
-                "(oh-ih)/2,"
-                "zoompan="
-                "z='min(zoom+0.0008,1.08)':"
-                "x='iw/2-(iw/zoom/2)':"
-                "y='ih/2-(ih/zoom/2)':"
-                f"d={total_frames}:"
-                "s=1920x1080:"
-                "fps=24"
-            )
-
-            # -----------------------------------
-            # FFmpeg command
+            # Build FFmpeg command
             # -----------------------------------
 
             command = [
                 self.ffmpeg,
                 "-y",
-
-                # Image input
-                "-loop",
-                "1",
-                "-i",
-                str(image_path),
             ]
 
-            # Audio input
+            # -----------------------------------
+            # Add every image as an input
+            # -----------------------------------
+
+            for image_path in images:
+
+                command.extend(
+                    [
+                        "-loop",
+                        "1",
+                        "-t",
+                        str(duration_per_image),
+                        "-i",
+                        str(image_path),
+                    ]
+                )
+
+            # -----------------------------------
+            # Add audio
+            # -----------------------------------
+
             if audio_path:
+
                 command.extend(
                     [
                         "-i",
@@ -162,44 +215,79 @@ class LocalVideoProvider(VideoProvider):
                 )
 
             # -----------------------------------
-            # Video settings
+            # Build filter for every image
             # -----------------------------------
+
+            filters = []
+
+            for index in range(image_count):
+
+                filter_part = (
+                    f"[{index}:v]"
+                    "scale=1920:1080:"
+                    "force_original_aspect_ratio=decrease,"
+                    "pad=1920:1080:"
+                    "(ow-iw)/2:"
+                    "(oh-ih)/2,"
+                    "setsar=1,"
+                    "fps=24,"
+                    f"trim=duration={duration_per_image},"
+                    "setpts=PTS-STARTPTS"
+                    f"[v{index}]"
+                )
+
+                filters.append(
+                    filter_part
+                )
+
+            # -----------------------------------
+            # Concatenate images
+            # -----------------------------------
+
+            concat_inputs = "".join(
+                f"[v{index}]"
+                for index in range(image_count)
+            )
+
+            concat_filter = (
+                concat_inputs
+                + f"concat=n={image_count}:"
+                "v=1:"
+                "a=0,"
+                "format=yuv420p"
+                "[video]"
+            )
+
+            filters.append(
+                concat_filter
+            )
+
+            filter_complex = ";".join(
+                filters
+            )
 
             command.extend(
                 [
-                    "-vf",
-                    video_filter,
+                    "-filter_complex",
+                    filter_complex,
 
-                    "-t",
-                    str(actual_duration),
-
-                    "-c:v",
-                    "libx264",
-
-                    "-pix_fmt",
-                    "yuv420p",
-
-                    "-preset",
-                    "medium",
-
-                    "-crf",
-                    "23",
+                    "-map",
+                    "[video]",
                 ]
             )
 
             # -----------------------------------
-            # Audio settings
+            # Map audio
             # -----------------------------------
 
             if audio_path:
 
+                audio_input_index = image_count
+
                 command.extend(
                     [
                         "-map",
-                        "0:v:0",
-
-                        "-map",
-                        "1:a:0",
+                        f"{audio_input_index}:a:0",
 
                         "-c:a",
                         "aac",
@@ -214,20 +302,31 @@ class LocalVideoProvider(VideoProvider):
                         "2",
 
                         "-shortest",
-
-                        "-movflags",
-                        "+faststart",
                     ]
                 )
 
-            else:
+            # -----------------------------------
+            # Video settings
+            # -----------------------------------
 
-                command.extend(
-                    [
-                        "-map",
-                        "0:v:0",
-                    ]
-                )
+            command.extend(
+                [
+                    "-c:v",
+                    "libx264",
+
+                    "-preset",
+                    "medium",
+
+                    "-crf",
+                    "23",
+
+                    "-pix_fmt",
+                    "yuv420p",
+
+                    "-movflags",
+                    "+faststart",
+                ]
+            )
 
             # -----------------------------------
             # Output
